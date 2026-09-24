@@ -15,6 +15,7 @@ jobs:
           sudo apt-get install -y lib32gcc-s1 curl zip
 
           mkdir -p "$HOME/steamcmd"
+
           curl -L \
             https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
             -o /tmp/steamcmd.tar.gz
@@ -26,26 +27,60 @@ jobs:
           "$HOME/steamcmd/steamcmd.sh" \
             +login anonymous \
             +workshop_download_item 274170 2943701886 \
-            +quit
+            +quit | tee "$GITHUB_WORKSPACE/steamcmd.log"
 
-      - name: Find files
+      - name: Search for CARLMPAIGN
         run: |
-          find "$HOME/steamcmd/steamapps/workshop" -type f | head -200
+          echo "=== Searching for Workshop ID 2943701886 ==="
+
+          find "$HOME" \
+            -type d \
+            -name "2943701886" \
+            -print 2>/dev/null || true
+
+          echo "=== Workshop files ==="
+
+          find "$HOME" \
+            -path "*workshop*" \
+            -type f \
+            -print 2>/dev/null | head -300 || true
 
       - name: Make ZIP
         run: |
-          MOD="$HOME/steamcmd/steamapps/workshop/content/274170/2943701886"
+          MOD="$(find "$HOME" \
+            -type d \
+            -name "2943701886" \
+            -print \
+            -quit 2>/dev/null)"
 
-          if [ ! -d "$MOD" ]; then
-            echo "BUZZ POWER was not downloaded"
+          if [ -z "$MOD" ]; then
+            echo "CARLMPAIGN folder was NOT found."
+            echo "SteamCMD log:"
+            cat "$GITHUB_WORKSPACE/steamcmd.log"
             exit 1
           fi
 
+          echo "FOUND MOD:"
+          echo "$MOD"
+
+          echo "FILES:"
+          find "$MOD" -type f -print
+
           cd "$MOD"
-          zip -r "$GITHUB_WORKSPACE/BUZZ_POWER_CARLMPAIGN.zip" .
+
+          zip -r \
+            "$GITHUB_WORKSPACE/BUZZ_POWER_CARLMPAIGN.zip" \
+            .
 
       - name: Upload ZIP
         uses: actions/upload-artifact@v4
         with:
           name: BUZZ-POWER-CARLMPAIGN
           path: BUZZ_POWER_CARLMPAIGN.zip
+
+      - name: Upload SteamCMD log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SteamCMD-log
+          path: steamcmd.log
