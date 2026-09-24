@@ -1,0 +1,51 @@
+name: Download BUZZ POWER CARLMPAIGN
+
+on:
+  workflow_dispatch:
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install SteamCMD
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y lib32gcc-s1 curl zip
+
+          mkdir -p "$HOME/steamcmd"
+          curl -L \
+            https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
+            -o /tmp/steamcmd.tar.gz
+
+          tar -xzf /tmp/steamcmd.tar.gz -C "$HOME/steamcmd"
+
+      - name: Download BUZZ POWER
+        run: |
+          "$HOME/steamcmd/steamcmd.sh" \
+            +login anonymous \
+            +workshop_download_item 274170 2943701886 \
+            +quit
+
+      - name: Find files
+        run: |
+          find "$HOME/steamcmd/steamapps/workshop" -type f | head -200
+
+      - name: Make ZIP
+        run: |
+          MOD="$HOME/steamcmd/steamapps/workshop/content/274170/2943701886"
+
+          if [ ! -d "$MOD" ]; then
+            echo "BUZZ POWER was not downloaded"
+            exit 1
+          fi
+
+          cd "$MOD"
+          zip -r "$GITHUB_WORKSPACE/BUZZ_POWER_CARLMPAIGN.zip" .
+
+      - name: Upload ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: BUZZ-POWER-CARLMPAIGN
+          path: BUZZ_POWER_CARLMPAIGN.zip
