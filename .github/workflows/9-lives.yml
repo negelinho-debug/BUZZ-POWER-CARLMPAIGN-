@@ -1,0 +1,92 @@
+name: Download 9 LIVES
+
+on:
+  workflow_dispatch:
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install SteamCMD
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y lib32gcc-s1 curl zip
+
+          mkdir -p "$HOME/steamcmd"
+
+          curl -L \
+            https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
+            -o /tmp/steamcmd.tar.gz
+
+          tar -xzf /tmp/steamcmd.tar.gz -C "$HOME/steamcmd"
+
+      - name: Download 9 LIVES
+        run: |
+          set +e
+
+          "$HOME/steamcmd/steamcmd.sh" \
+            +login anonymous \
+            +workshop_download_item 274170 757422461 validate \
+            +quit 2>&1 | tee "$GITHUB_WORKSPACE/steamcmd.log"
+
+          exit 0
+
+      - name: Search for 9 LIVES
+        run: |
+          echo "Searching for Workshop ID 757422461..."
+
+          find "$HOME" \
+            -type d \
+            -name "757422461" \
+            -print 2>/dev/null || true
+
+          echo "Workshop files:"
+          find "$HOME" \
+            -path "*workshop*" \
+            -type f \
+            -print 2>/dev/null | head -300 || true
+
+      - name: Make ZIP
+        run: |
+          MOD="$(find "$HOME" \
+            -type d \
+            -name "757422461" \
+            -print \
+            -quit 2>/dev/null)"
+
+          if [ -z "$MOD" ]; then
+            echo "================================"
+            echo "9 LIVES WAS NOT DOWNLOADED"
+            echo "================================"
+            echo
+            cat "$GITHUB_WORKSPACE/steamcmd.log"
+            exit 1
+          fi
+
+          echo "FOUND 9 LIVES:"
+          echo "$MOD"
+
+          echo
+          echo "FILES:"
+          find "$MOD" -type f -print
+
+          cd "$MOD"
+
+          zip -r \
+            "$GITHUB_WORKSPACE/9_LIVES_HENCHCAT.zip" \
+            .
+
+      - name: Upload 9 LIVES
+        uses: actions/upload-artifact@v4
+        with:
+          name: 9-LIVES-Henchcat
+          path: 9_LIVES_HENCHCAT.zip
+
+      - name: Upload SteamCMD log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 9-LIVES-SteamCMD-log
+          path: steamcmd.log
